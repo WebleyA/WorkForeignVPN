@@ -1,0 +1,5 @@
+.idea
+__pycache__/
+happ-two-vless.generated*.json
+.venv/
+/tools/happ-two-vless.local.json

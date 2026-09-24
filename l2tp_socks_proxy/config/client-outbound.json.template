@@ -1,0 +1,17 @@
+{
+  "tag": "old-l2tp-vpn",
+  "protocol": "vless",
+  "settings": {
+    "vnext": [
+      {
+        "address": "127.0.0.1",
+        "port": ${VLESS_PORT},
+        "users": [{ "id": "${VLESS_UUID}", "encryption": "none" }]
+      }
+    ]
+  },
+  "streamSettings": {
+    "network": "tcp",
+    "security": "none"
+  }
+}

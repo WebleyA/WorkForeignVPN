@@ -1,0 +1,207 @@
+{
+  "remarks": "Lex — VLESS-Работа + VLESS-Заграница (тестовые серверы)",
+  "log": {
+    "loglevel": "warning"
+  },
+  "dns": {
+    "hosts": {
+      "cloudflare-dns.com": "1.1.1.1",
+      "dns.google": "8.8.8.8"
+    },
+    "servers": [
+      {
+        "address": "https://dns.google/dns-query",
+        "domains": [
+          "geosite:category-ru",
+          "geosite:apple",
+          "geosite:microsoft",
+          "geosite:android"
+        ],
+        "skipFallback": true
+      },
+      "https://cloudflare-dns.com/dns-query"
+    ],
+    "queryStrategy": "UseIP",
+    "disableFallbackIfMatch": true,
+    "tag": "internal-dns"
+  },
+  "inbounds": [
+    {
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    },
+    {
+      "tag": "http-in",
+      "listen": "127.0.0.1",
+      "port": 10809,
+      "protocol": "http",
+      "settings": {},
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "VLESS-Заграница",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "vpn2.example.invalid",
+            "port": 443,
+            "users": [
+              {
+                "id": "22222222-2222-4222-8222-222222222222",
+                "encryption": "none",
+                "flow": ""
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "vpn2.example.invalid",
+          "allowInsecure": false,
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "tag": "VLESS-Работа",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "vpn1.example.invalid",
+            "port": 443,
+            "users": [
+              {
+                "id": "11111111-1111-4111-8111-111111111111",
+                "encryption": "none",
+                "flow": ""
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "vpn1.example.invalid",
+          "allowInsecure": false,
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIP"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": [
+          "internal-dns"
+        ],
+        "domain": [
+          "full:dns.google"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": [
+          "internal-dns"
+        ],
+        "ip": [
+          "8.8.8.8"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": [
+          "internal-dns"
+        ],
+        "outboundTag": "VLESS-Заграница"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "domain:big3.ru"
+        ],
+        "outboundTag": "VLESS-Работа"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "10.0.0.0/8",
+          "37.48.254.0/24"
+        ],
+        "outboundTag": "VLESS-Работа"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "geosite:category-ru",
+          "geosite:apple",
+          "geosite:microsoft",
+          "geosite:android"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "81.163.18.39",
+          "100.64.0.0/10",
+          "172.16.0.0/12",
+          "192.168.0.0/16",
+          "169.254.0.0/16",
+          "224.0.0.0/4",
+          "255.255.255.255",
+          "geoip:private",
+          "geoip:ru"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "network": "tcp,udp",
+        "outboundTag": "VLESS-Заграница"
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+[global]
+access control = no
+
+[lac old-vpn]
+lns = ${VPN_SERVER}
+ppp debug = no
+pppoptfile = /etc/ppp/options.l2tpd.client
+length bit = yes
+redial = yes
+redial timeout = 5
+max redials = 30

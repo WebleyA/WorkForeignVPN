@@ -1,0 +1,33 @@
+{
+  "log": { "loglevel": "warning" },
+  "dns": {
+    "servers": ["${VPN_DNS}"],
+    "queryStrategy": "UseIPv4"
+  },
+  "inbounds": [
+    {
+      "tag": "vless-in",
+      "listen": "0.0.0.0",
+      "port": 1081,
+      "protocol": "vless",
+      "settings": {
+        "clients": [{ "id": "${VLESS_UUID}" }],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "l2tp-out",
+      "protocol": "freedom",
+      "settings": { "domainStrategy": "UseIPv4" },
+      "streamSettings": {
+        "sockopt": { "interface": "ppp0" }
+      }
+    }
+  ]
+}

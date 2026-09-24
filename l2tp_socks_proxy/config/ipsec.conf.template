@@ -1,0 +1,17 @@
+config setup
+  uniqueids=no
+
+conn old-vpn
+  keyexchange=ikev1
+  authby=secret
+  type=transport
+  left=%defaultroute
+  leftprotoport=17/1701
+  right=${VPN_SERVER}
+  rightprotoport=17/1701
+  ike=aes256-sha1-modp1024,3des-sha1-modp1024!
+  esp=aes256-sha1,3des-sha1!
+  auto=add
+  dpddelay=30
+  dpdtimeout=120
+  dpdaction=restart
