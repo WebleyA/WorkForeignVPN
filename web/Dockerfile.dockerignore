@@ -1,0 +1,7 @@
+**
+!web/
+!web/index.html
+!web/style.css
+!web/app.js
+!tools/
+!tools/happ-two-vless.json

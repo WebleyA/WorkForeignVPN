@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Конфиг Happ · Рабочий и зарубежный VPN</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand"><span class="brand-icon">↗</span><span>HAPP <small>CONFIG STUDIO</small></span></div>
+      <div class="header-actions"><span id="save-status" role="status">Автосохранение включено</span><button type="button" class="button quiet" id="reset">Сбросить всё</button></div>
+    </header>
+
+    <section class="intro">
+      <div class="eyebrow"><span class="live-dot"></span> Локальный конструктор конфигурации</div>
+      <h1>Два направления.<br><em>Один понятный конфиг.</em></h1>
+      <p>Добавьте VLESS-ключи, настройте порядок маршрутов и скопируйте готовый JSON для Happ. Всё собирается прямо в браузере.</p>
+      <div class="intro-tags"><span>01 · Ключи</span><span>02 · Маршруты</span><span>03 · Готовый JSON</span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="keys-title">
+      <div class="section-head"><div><span class="section-number">01 / ПОДКЛЮЧЕНИЯ</span><h2 id="keys-title">Ваши ключи</h2><p>Примечания нужны только вам и не попадут в конфиг.</p></div><div class="head-symbol">⌁</div></div>
+      <div class="key-grid">
+        <div class="key-card work-card"><div class="card-title"><span class="number-badge">1</span><div><h3>Рабочий VPN</h3><p>Для рабочих адресов и big3.ru</p></div></div><label for="work-key">VLESS-ключ</label><div class="input-wrap"><input id="work-key" type="password" spellcheck="false" autocomplete="off" placeholder="vless://uuid@server:port?..."><button type="button" class="reveal" data-reveal="work-key" aria-label="Показать ключ">Показать</button></div><label for="work-note">Примечание <span class="optional">необязательно</span></label><input id="work-note" type="text" autocomplete="off" placeholder="Например, офисный сервер"></div>
+        <div class="key-card foreign-card"><div class="card-title"><span class="number-badge foreign">2</span><div><h3>Зарубежный VPN</h3><p>Один или несколько серверов</p></div></div><div id="foreign-list"></div><button type="button" class="button add-key" id="add-foreign"><span>＋</span> Добавить сервер</button><p class="small-hint">При нескольких серверах выбирается доступный с минимальной задержкой.</p></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="routes-title">
+      <div class="section-head"><div><span class="section-number">02 / ЛОГИКА</span><h2 id="routes-title">Таблица маршрутизации</h2><p>Правила проверяются сверху вниз. Перетащите строку за ручку, чтобы изменить приоритет.</p></div><div class="route-actions"><button type="button" class="button outline" id="copy-routes">Скопировать</button><button type="button" class="button outline" id="paste-routes">Вставить</button><button type="button" class="button outline" id="add-route">＋ Добавить правило</button></div></div>
+      <div id="routes-import" class="import-panel" hidden><label for="routes-json">JSON правил маршрутизации</label><p>Вставьте массив правил Xray или полный конфиг с <code>routing.rules</code>. Импорт заменит текущую таблицу.</p><textarea id="routes-json" spellcheck="false" placeholder='[{"type":"field","domain":["domain:example.org"],"outboundTag":"direct"}]'></textarea><div id="routes-import-error" class="error" role="alert" hidden></div><div class="import-actions"><button type="button" class="button dark" id="apply-routes">Применить</button><button type="button" class="button quiet" id="cancel-routes">Отмена</button></div></div>
+      <p id="routes-feedback" class="routes-feedback" role="status" hidden></p>
+      <div class="table-scroll"><table><thead><tr><th class="order-col">Порядок</th><th>Вход</th><th>Тип условия</th><th>Значения <span class="th-sub">по одному в строке</span></th><th>Куда</th><th class="delete-col"></th></tr></thead><tbody id="routes"></tbody></table></div>
+      <p class="table-foot">Вход «Все» подходит для обычных правил. Служебные DNS-строки используют вход <code>internal-dns</code>. Последнее правило «Весь TCP/UDP» охватывает остальной трафик.</p>
+    </section>
+
+    <section class="panel output-panel" aria-labelledby="output-title">
+      <div class="section-head"><div><span class="section-number">03 / РЕЗУЛЬТАТ</span><h2 id="output-title">Готовый конфиг</h2><p>JSON обновляется при изменении ключей и правил.</p></div><button type="button" class="button dark" id="copy" disabled>Скопировать JSON</button></div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий и хотя бы один зарубежный VLESS-ключ, чтобы увидеть конфиг.</pre></div>
+    </section>
+    <footer>Работает локально · Ключи и настройки автоматически сохраняются в этом браузере · <a href="https://xtls.github.io/en/config/routing.html" target="_blank" rel="noopener noreferrer">Правила Xray ↗</a></footer>
+  </main>
+</body>
+</html>

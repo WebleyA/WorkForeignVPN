@@ -1,0 +1,15 @@
+services:
+  vpn-split:
+    container_name: vpn-split
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    expose:
+      - "80"
+    networks:
+      - npm
+    restart: unless-stopped
+
+networks:
+  npm:
+    external: true
