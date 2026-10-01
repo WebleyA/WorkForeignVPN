@@ -5,6 +5,8 @@ const WORK_TAG = "VLESS-Работа";
 const FOREIGN_TAG = "VLESS-Заграница";
 const BALANCER_TAG = "Заграница-автовыбор";
 const FOREIGN_PREFIX = "VLESS-Заграница-";
+const DEFAULT_TITLE = "Lex — VLESS-Работа + VLESS-Заграница";
+const DEFAULT_DESCRIPTION = "VLESS | TCP | TLS | JSON";
 const $ = (selector) => document.querySelector(selector);
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -15,7 +17,7 @@ let draggedIndex = null;
 
 function defaultState() {
   return {
-    workKey: "", workNote: "",
+    workKey: "", workNote: "", title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION,
     foreign: [{ key: "", note: "" }],
     rules: clone(template.routing.rules).map(ruleToRow),
   };
@@ -171,7 +173,12 @@ function buildConfig() {
   const work = parseVless(state.workKey, WORK_TAG);
   const foreign = state.foreign.map((item, index) => parseVless(item.key, multiple ? `${FOREIGN_PREFIX}${index + 1}` : FOREIGN_TAG));
   const config = clone(template);
-  config.remarks = multiple ? "Lex — VLESS-Работа + зарубежные серверы (автовыбор)" : "Lex — VLESS-Работа + VLESS-Заграница";
+  config.remarks = state.title.trim() || (multiple ? "Lex — VLESS-Работа + зарубежные серверы (автовыбор)" : "Lex — VLESS-Работа + VLESS-Заграница");
+  if (state.description.trim()) {
+    config.meta = { ...config.meta, serverDescription: state.description.trim() };
+  } else if (config.meta) {
+    delete config.meta.serverDescription;
+  }
   config.outbounds = [ ...foreign, work, ...config.outbounds.filter(outbound => ![WORK_TAG, FOREIGN_TAG].includes(outbound.tag)) ];
   config.routing.rules = state.rules.map((row, index) => rowToRule(row, index, multiple));
   if (multiple) {
@@ -332,7 +339,9 @@ function loadSaved() {
     if (typeof saved.workKey !== "string" || typeof saved.workNote !== "string" || !Array.isArray(saved.foreign) || !saved.foreign.length || !Array.isArray(saved.rules)) return false;
     if (saved.foreign.some(x => !x || typeof x.key !== "string" || typeof x.note !== "string")) return false;
     if (saved.rules.some(x => !x || ["inbound", "kind", "values", "destination"].some(k => typeof x[k] !== "string"))) return false;
-    state = saved;
+    if (saved.description !== undefined && typeof saved.description !== "string") return false;
+    if (saved.title !== undefined && typeof saved.title !== "string") return false;
+    state = { ...saved, title: saved.title || DEFAULT_TITLE, description: saved.description || DEFAULT_DESCRIPTION };
     return true;
   } catch { return false; }
 }
@@ -351,6 +360,10 @@ async function init() {
   const restored = loadSaved();
   $("#work-key").value = state.workKey;
   $("#work-note").value = state.workNote;
+  $("#config-title").value = state.title;
+  $("#config-title").addEventListener("input", event => { state.title = event.target.value; refresh(); });
+  $("#config-description").value = state.description;
+  $("#config-description").addEventListener("input", event => { state.description = event.target.value; refresh(); });
   $("#work-key").addEventListener("input", event => { state.workKey = event.target.value; refresh(); });
   $("#work-note").addEventListener("input", event => { state.workNote = event.target.value; persistState(); });
   document.querySelectorAll("[data-reveal]").forEach(button => button.addEventListener("click", () => toggleReveal(document.getElementById(button.dataset.reveal), button)));
@@ -394,6 +407,8 @@ async function init() {
     state = defaultState();
     $("#work-key").value = "";
     $("#work-note").value = "";
+    $("#config-title").value = state.title;
+    $("#config-description").value = state.description;
     renderForeign(); renderRoutes(); refresh(false);
     $("#routes-import").hidden = true;
     routeFeedback("");
