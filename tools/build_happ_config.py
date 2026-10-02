@@ -115,7 +115,12 @@ def parse_vless(link, tag):
             extra = take("extra")
             if extra:
                 try:
-                    parsed_extra = json.loads(extra)
+                    # Some exporters encode extra separately from the query.
+                    # Preserve percent sequences when extra is already JSON.
+                    try:
+                        parsed_extra = json.loads(extra)
+                    except json.JSONDecodeError:
+                        parsed_extra = json.loads(unquote(extra, errors="strict"))
                     if not isinstance(parsed_extra, dict):
                         raise ValueError
                     json.dumps(parsed_extra, allow_nan=False)

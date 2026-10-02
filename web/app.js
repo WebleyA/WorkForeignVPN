@@ -155,7 +155,17 @@ function parseVless(raw, tag) {
       if (!["auto", "packet-up", "stream-up", "stream-one"].includes(mode)) throw new Error("Неизвестный режим XHTTP.");
       transport.mode = mode;
       const extra = take("extra");
-      if (extra) { try { transport.extra = JSON.parse(extra); if (!transport.extra || Array.isArray(transport.extra) || typeof transport.extra !== "object") throw new Error(); } catch { throw new Error("XHTTP extra должен быть JSON-объектом."); } }
+      if (extra) {
+        try {
+          // Some exporters URI-encode extra before encoding the query itself.
+          // Parse first to preserve literal percent sequences inside valid JSON.
+          let parsed;
+          try { parsed = JSON.parse(extra); }
+          catch { parsed = JSON.parse(decodeURIComponent(extra)); }
+          if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error();
+          transport.extra = parsed;
+        } catch { throw new Error("XHTTP extra должен быть JSON-объектом."); }
+      }
     }
     stream[{ ws: "wsSettings", httpupgrade: "httpupgradeSettings", xhttp: "xhttpSettings" }[network]] = transport;
   } else if (network === "grpc") {

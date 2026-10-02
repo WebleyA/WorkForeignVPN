@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import build_happ_config as app
 
@@ -60,6 +60,30 @@ class ParserTests(unittest.TestCase):
         stream = app.parse_vless(link(type="xhttp", security="tls", path="/tunnel", mode="stream-up",
                                       extra=json.dumps(extra)), app.WORK_TAG)["streamSettings"]
         self.assertEqual(stream["xhttpSettings"], {"path": "/tunnel", "mode": "stream-up", "extra": extra})
+
+    def test_xhttp_double_encoded_extra(self):
+        extra = {"xmux": {"cMaxLifetimeMs": "180000-300000", "cMaxReuseTimes": "0", "maxConcurrency": "16-32"}}
+        uri = link(type="xhttp", path="/api/v1/", mode="auto",
+                                      extra=quote(json.dumps(extra, indent=2), safe=""), security="tls",
+                                      sni="one.example.invalid", alpn="h2", fp="safari").replace("?", "?host=&", 1)
+        stream = app.parse_vless(uri, app.DEFAULT_TAG)["streamSettings"]
+        self.assertEqual(stream["xhttpSettings"], {"path": "/api/v1/", "mode": "auto", "extra": extra})
+        self.assertEqual(stream["tlsSettings"]["fingerprint"], "safari")
+        self.assertEqual(stream["tlsSettings"]["alpn"], ["h2"])
+
+    def test_xhttp_extra_preserves_values(self):
+        extra = {"path": "/a%2Fb%25", "label": "Резерв + 100%", "nested": {"value": "%ZZ"}}
+        raw = json.dumps(extra)
+        for value in (raw, quote(raw, safe="")):
+            with self.subTest(value=value):
+                result = app.parse_vless(link(type="xhttp", extra=value), app.DEFAULT_TAG)
+                self.assertEqual(result["streamSettings"]["xhttpSettings"]["extra"], extra)
+
+    def test_xhttp_invalid_encoded_extra(self):
+        for raw in ("[]", "null", '"text"', "1", "{bad}", "%ZZ", "%7B%FF%7D", '{"x":NaN}', quote(quote('{"x":1}', safe=""), safe="")):
+            for value in (raw, quote(raw, safe="")):
+                with self.subTest(value=value), self.assertRaisesRegex(ValueError, "XHTTP extra"):
+                    app.parse_vless(link(type="xhttp", extra=value), app.DEFAULT_TAG)
 
     def test_httpupgrade_and_raw_alias(self):
         stream = app.parse_vless(link(type="httpupgrade", security="tls", path="/up"), app.WORK_TAG)["streamSettings"]
