@@ -45,10 +45,9 @@
       <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий и хотя бы один зарубежный VLESS-ключ, чтобы увидеть конфиг.</pre></div>
     </section>
     <section class="panel" aria-labelledby="connectivity-title">
-      <div class="section-head"><div><span class="section-number">04 / ПРОВЕРКА СОЕДИНЕНИЙ</span><h2 id="connectivity-title">Доступность сервисов</h2><p>Запустите Docker Desktop и выполните команды в терминале macOS. Инструмент проверит сайты, API и рабочие сервисы через сеть контейнера.</p></div></div>
-      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>Терминал · macOS</span></div><pre>docker run --rm -d --name connectivity-check --pull always -p 127.0.0.1:8765:8765 ghcr.io/webleya/connectivity-check:latest
-open http://127.0.0.1:8765/</pre></div>
-      <p class="table-foot">Если контейнер уже запущен, откройте <a href="http://127.0.0.1:8765/" target="_blank" rel="noopener noreferrer">страницу проверки ↗</a>. Для остановки выполните <code>docker stop connectivity-check</code>; контейнер удалится автоматически.</p>
+      <div class="section-head"><div><span class="section-number">04 / ПРОВЕРКА СОЕДИНЕНИЙ</span><h2 id="connectivity-title">Доступность сервисов</h2><p>Запустите Docker Desktop и выполните команду в терминале. Инструмент проверит сайты, API и рабочие сервисы через сеть контейнера.</p></div></div>
+      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>Терминал</span></div><pre>docker run --rm --name connectivity-check --pull always -p 127.0.0.1:8765:8765 ghcr.io/webleya/connectivity-check:latest</pre></div>
+      <p class="table-foot">После запуска откройте <a href="http://127.0.0.1:8765/" target="_blank" rel="noopener noreferrer">страницу проверки ↗</a> и оставьте терминал открытым. Для остановки нажмите Ctrl+C в этом терминале; контейнер удалится автоматически. Из другого терминала можно остановить его командой <code>docker stop connectivity-check</code>.</p>
     </section>
     <footer>Работает локально · Ключи и настройки автоматически сохраняются в этом браузере · <a href="https://xtls.github.io/en/config/routing.html" target="_blank" rel="noopener noreferrer">Правила Xray ↗</a></footer>
   </main>
