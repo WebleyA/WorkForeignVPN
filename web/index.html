@@ -44,6 +44,12 @@
       <div class="config-description"><label for="config-description">Описание под заголовком в Happ <span class="optional">необязательно</span></label><input id="config-description" type="text" autocomplete="off" placeholder="Например, Рабочие сети через офис, остальные — через зарубежный VPN" aria-describedby="description-hint"><p id="description-hint">Заменяет строку с протоколами под названием сервера в Happ. Если оставить пустым, Happ покажет протоколы.</p></div>
       <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий и хотя бы один зарубежный VLESS-ключ, чтобы увидеть конфиг.</pre></div>
     </section>
+    <section class="panel" aria-labelledby="connectivity-title">
+      <div class="section-head"><div><span class="section-number">04 / ПРОВЕРКА СОЕДИНЕНИЙ</span><h2 id="connectivity-title">Доступность сервисов</h2><p>Запустите Docker Desktop и выполните команды в терминале macOS. Инструмент проверит сайты, API и рабочие сервисы через сеть контейнера.</p></div></div>
+      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>Терминал · macOS</span></div><pre>docker run --rm -d --name connectivity-check --pull always -p 127.0.0.1:8765:8765 ghcr.io/webleya/connectivity-check:latest
+open http://127.0.0.1:8765/</pre></div>
+      <p class="table-foot">Если контейнер уже запущен, откройте <a href="http://127.0.0.1:8765/" target="_blank" rel="noopener noreferrer">страницу проверки ↗</a>. Для остановки выполните <code>docker stop connectivity-check</code>; контейнер удалится автоматически.</p>
+    </section>
     <footer>Работает локально · Ключи и настройки автоматически сохраняются в этом браузере · <a href="https://xtls.github.io/en/config/routing.html" target="_blank" rel="noopener noreferrer">Правила Xray ↗</a></footer>
   </main>
 </body>

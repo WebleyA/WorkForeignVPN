@@ -4,8 +4,23 @@
 
 - `l2tp_socks_proxy/` — Docker-контейнер с VLESS-входом и выходом через L2TP/IPsec VPN.
 - `tools/` — генератор конфигурации, шаблон маршрутизации и тесты.
+- `connectivity-check/` — самостоятельный инструмент проверки доступности сервисов с поддержкой Docker.
 
 ## Запуск
+
+### Локальная проверка соединений
+
+Отдельный инструмент находится в `connectivity-check/`: веб-страница, Python-сервер, тесты и Dockerfile. Он проверяет Яндекс, Яндекс и Google напрямую по IP без DNS, Google, OpenAI API, Claude API, рабочий кабинет и PostgreSQL. HTTP 403 отображается красным; таймаут PostgreSQL — 2 секунды.
+
+Сборка и запуск из корня проекта:
+
+```bash
+docker build -t connectivity-check:latest ./connectivity-check
+docker run --rm -d --name connectivity-check -p 127.0.0.1:8765:8765 connectivity-check:latest
+open http://127.0.0.1:8765/
+```
+
+`open` открывает браузер на macOS. Для остановки: `docker stop connectivity-check`; контейнер удалится автоматически. Инструкции по публикации образа, запуску без Docker и тестам — в [connectivity-check/README.md](connectivity-check/README.md).
 
 Для веб-конструктора нужен Docker Compose 2.24+ или Python 3.9+. Рабочему VPN-прокси дополнительно нужна поддержка `/dev/ppp` на Docker-хосте (на macOS — внутри Linux VM Docker).
 

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка соединений</title>
+<style>
+:root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101519; color: #eaf0f2; }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(ellipse at 85% 0%, #17352e 0%, transparent 55%); min-height: 100vh; }
+main { max-width: 1050px; margin: auto; padding: 56px 28px 32px; }
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #a7b5b9; font-size: 12px; letter-spacing: .1em; }
+.brand { color: #a1e8c9; }
+h1 { font-size: clamp(32px, 5vw, 52px); margin: 50px 0 16px; letter-spacing: -.045em; font-weight: 650; }
+.intro { max-width: 680px; color: #a7b5b9; line-height: 1.7; margin: 0; }
+.toolbar { margin: 30px 0 24px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+button { font: inherit; border: 0; cursor: pointer; border-radius: 10px; }
+button:focus-visible { outline: 3px solid #a1e8c9; outline-offset: 4px; }
+.primary { background: #a1e8c9; color: #10271d; padding: 14px 22px; font-weight: 650; }
+button:disabled { opacity: .55; cursor: wait; }
+#summary { color: #a7b5b9; font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { padding: 24px; border: 1px solid #2b363b; border-radius: 16px; background: #171e22; min-height: 220px; }
+.card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.kind { font-size: 11px; letter-spacing: .12em; color: #94a4ab; }
+.badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #a7b5b9; }
+.dot { width: 7px; height: 7px; background: currentColor; border-radius: 50%; }
+[data-status="ok"] .badge { color: #a1e8c9; }
+[data-status="warning"] .badge { color: #f5cc81; }
+[data-status="error"] .badge { color: #ff9a9a; }
+[data-status="error"] .message { color: #ff9a9a; }
+[data-status="running"] .dot { animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+h2 { margin: 22px 0 12px; font-size: 24px; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.message { margin: 0 0 7px; font-size: 14px; min-height: 20px; }
+.detail { color: #a7b5b9; font-size: 12px; line-height: 1.6; margin: 0 0 20px; min-height: 38px; overflow-wrap: anywhere; }
+.metric { font-size: 12px; color: #a7b5b9; }
+.retry { color: #dce5e8; background: #283339; padding: 9px 12px; font-size: 12px; }
+.notice { margin-top: 20px; padding: 18px 20px; border: 1px solid #33443d; border-radius: 12px; background: #18251e; line-height: 1.65; font-size: 13px; color: #c1d0c8; }
+.notice code { color: #a1e8c9; }
+#helper-error { border-color: #714244; background: #2b1f22; color: #f8bcbc; }
+[hidden] { display: none !important; }
+footer { color: #83949b; font-size: 12px; line-height: 1.7; margin-top: 25px; }
+a { color: #a1e8c9; }
+@media(max-width: 650px) { main { padding: 28px 18px; } h1 { margin-top: 35px; } .grid { grid-template-columns: 1fr; } .masthead { font-size: 10px; } }
+@media(prefers-reduced-motion: reduce) { .dot { animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+<div class="masthead"><span class="brand">↗ CONNECTION CHECK</span><span>НА ЭТОМ КОМПЬЮТЕРЕ</span></div>
+<h1>Все соединения на виду.</h1>
+<p class="intro">Проверь доступ к внешним сайтам, рабочему кабинету и базе данных. Включи VPN и повтори проверку, чтобы сравнить результат.</p>
+<div class="toolbar"><button class="primary" id="check-all">Проверить всё</button><span id="summary" role="status" aria-live="polite">Готов к проверке</span></div>
+<div id="helper-error" class="notice" role="alert" hidden>Локальный сервер проверки недоступен или не ответил вовремя. Запусти контейнер инструмента или <code>python3 connectivity-check/server.py</code> из корня проекта и открой <a href="http://127.0.0.1:8765/">http://127.0.0.1:8765/</a>.</div>
+<div class="grid" id="cards"></div>
+<div class="notice">Проверки выполняются сервером инструмента через его сеть. При запуске в Docker используется сеть контейнера через Docker Desktop. Прокси, настроенный только в браузере или расширении, на эти проверки не влияет.</div>
+<footer>Сайты: HTTPS и ответ HTTP. PostgreSQL: TCP и ответ на SSLRequest, без входа в базу и выполнения запросов. Зелёный статус базы подтверждает доступность сервиса; доступ с твоим логином нужно проверять отдельно. <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-SSL">Протокол проверки PostgreSQL</a>.<br>Время — продолжительность проверки соединения, а не ICMP ping. Результаты хранятся только до закрытия страницы.</footer>
+</main>
+<script>
+"use strict";
+const targets = [
+  { id: "yandex", name: "yandex.ru", kind: "РОССИЙСКИЙ СЕРВИС · HTTPS" },
+  { id: "ru_ip", name: "Яндекс · 77.88.55.88", kind: "РОССИЙСКИЙ СЕРВИС · HTTP БЕЗ DNS" },
+  { id: "google", name: "google.com", kind: "ЗАРУБЕЖНЫЙ СЕРВИС · HTTPS" },
+  { id: "foreign_ip", name: "Google · 142.251.13.113", kind: "ЗАРУБЕЖНЫЙ СЕРВИС · HTTPS БЕЗ DNS" },
+  { id: "openai", name: "api.openai.com", kind: "OPENAI API · HTTPS" },
+  { id: "claude", name: "api.anthropic.com", kind: "CLAUDE API · HTTPS" },
+  { id: "big3", name: "lk.big3.ru", kind: "РАБОТА · HTTPS" },
+  { id: "postgres", name: "10.10.13.98:5432", kind: "РАБОТА · POSTGRESQL" },
+];
+const base = location.protocol === "file:" ? "http://127.0.0.1:8765" : location.origin;
+const cards = new Map();
+const results = new Map();
+let active = 0;
+for (const target of targets) {
+  const card = document.createElement("article");
+  card.className = "card";
+  card.dataset.status = "idle";
+  card.innerHTML = '<div class="card-top"><span class="kind"></span><span class="badge"><span class="dot"></span><span class="status">Ожидает</span></span></div><h2></h2><p class="message">Ещё не проверяли</p><p class="detail"></p><div class="card-bottom"><span class="metric">—</span><button class="retry">Проверить</button></div>';
+  card.querySelector(".kind").textContent = target.kind;
+  card.querySelector("h2").textContent = target.name;
+  card.querySelector(".retry").addEventListener("click", () => check(target));
+  document.querySelector("#cards").append(card);
+  cards.set(target.id, card);
+}
+function summary() {
+  document.querySelector("#check-all").disabled = active > 0;
+  const label = document.querySelector("#summary");
+  if (active) { label.textContent = `Проверяем соединения: ${active}`; return; }
+  const count = [...results.values()].filter(x => x === "ok").length;
+  label.textContent = `Успешно: ${count} из ${results.size} · ${new Date().toLocaleTimeString("ru-RU")}`;
+}
+async function check(target) {
+  const card = cards.get(target.id);
+  if (card.dataset.status === "running") return;
+  active++;
+  card.dataset.status = "running";
+  card.querySelector(".retry").disabled = true;
+  card.querySelector(".status").textContent = "Проверяем";
+  card.querySelector(".message").textContent = "Устанавливаем соединение…";
+  card.querySelector(".detail").textContent = "";
+  card.querySelector(".metric").textContent = "—";
+  summary();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(`${base}/api/check?target=${target.id}`, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error("helper");
+    const result = await response.json();
+    if (result.target !== target.id || !["ok", "warning", "error"].includes(result.status)) throw new Error("helper");
+    card.dataset.status = result.status;
+    card.querySelector(".status").textContent = { ok: "Доступен", warning: "Есть ответ", error: "Ошибка" }[result.status];
+    card.querySelector(".message").textContent = result.message;
+    card.querySelector(".detail").textContent = result.detail + (result.peer ? ` · IP ${result.peer}` : "");
+    card.querySelector(".metric").textContent = `${result.elapsed_ms} мс · ${new Date().toLocaleTimeString("ru-RU")}`;
+    results.set(target.id, result.status);
+  } catch {
+    card.dataset.status = "error";
+    card.querySelector(".status").textContent = "Не проверен";
+    card.querySelector(".message").textContent = "Нет ответа локального сервера";
+    card.querySelector(".detail").textContent = "Доступность адреса неизвестна. Запусти сервер проверки.";
+    results.delete(target.id);
+    document.querySelector("#helper-error").hidden = false;
+  } finally {
+    clearTimeout(timeout);
+    card.querySelector(".retry").disabled = false;
+    active--;
+    summary();
+  }
+}
+async function checkAll() {
+  document.querySelector("#helper-error").hidden = true;
+  await Promise.all(targets.map(check));
+}
+document.querySelector("#check-all").addEventListener("click", checkAll);
+checkAll();
+</script>
+</body>
+</html>
