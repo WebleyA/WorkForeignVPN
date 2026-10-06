@@ -10,7 +10,7 @@
 
 ### Локальная проверка соединений
 
-Отдельный инструмент находится в `connectivity-check/`: веб-страница, Python-сервер, тесты и Dockerfile. Он проверяет Яндекс, Яндекс и Google напрямую по IP без DNS, Google, OpenAI API, Claude API, рабочий кабинет и PostgreSQL. HTTP 403 отображается красным; таймаут PostgreSQL — 2 секунды.
+Отдельный инструмент находится в `connectivity-check/`: веб-страница, Python-сервер, тесты и Dockerfile. Он проверяет Яндекс, Яндекс и Google напрямую по IP без DNS, Google, OpenAI API, Claude API, рабочий кабинет и PostgreSQL. После Google показывает внешний IP через российский IPgeo (со страной) и зарубежный ipify. HTTP 403 отображается красным; таймаут PostgreSQL — 2 секунды.
 
 Сборка и запуск из корня проекта:
 

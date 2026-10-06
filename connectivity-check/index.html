@@ -64,6 +64,8 @@ const targets = [
   { id: "ru_ip", name: "Яндекс · 77.88.55.88", kind: "РОССИЙСКИЙ СЕРВИС · HTTP БЕЗ DNS" },
   { id: "google", name: "google.com", kind: "ЗАРУБЕЖНЫЙ СЕРВИС · HTTPS" },
   { id: "foreign_ip", name: "Google · 142.251.13.113", kind: "ЗАРУБЕЖНЫЙ СЕРВИС · HTTPS БЕЗ DNS" },
+  { id: "external_ru", name: "Мой IP · IPgeo", kind: "ВНЕШНИЙ IP · РОССИЙСКИЙ СЕРВИС" },
+  { id: "external_foreign", name: "Мой IP · ipify", kind: "ВНЕШНИЙ IP · ЗАРУБЕЖНЫЙ СЕРВИС" },
   { id: "openai", name: "api.openai.com", kind: "OPENAI API · HTTPS" },
   { id: "claude", name: "api.anthropic.com", kind: "CLAUDE API · HTTPS" },
   { id: "big3", name: "lk.big3.ru", kind: "РАБОТА · HTTPS" },
@@ -112,7 +114,7 @@ async function check(target) {
     card.dataset.status = result.status;
     card.querySelector(".status").textContent = { ok: "Доступен", warning: "Есть ответ", error: "Ошибка" }[result.status];
     card.querySelector(".message").textContent = result.message;
-    card.querySelector(".detail").textContent = result.detail + (result.peer ? ` · IP ${result.peer}` : "");
+    card.querySelector(".detail").textContent = result.detail + (result.peer && !result.external_ip ? ` · IP ${result.peer}` : "");
     card.querySelector(".metric").textContent = `${result.elapsed_ms} мс · ${new Date().toLocaleTimeString("ru-RU")}`;
     results.set(target.id, result.status);
   } catch {

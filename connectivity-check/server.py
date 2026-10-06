@@ -3,6 +3,7 @@
 
 import argparse
 import http.client
+import ipaddress
 import json
 from pathlib import Path
 import socket
@@ -18,6 +19,8 @@ TARGETS = {
     "ru_ip": ("77.88.55.88", 80, "http_ip"),
     "google": ("google.com", 443, "https"),
     "foreign_ip": ("142.251.13.113", 443, "https_ip"),
+    "external_ru": ("api.ipgeo.ru", 443, "https"),
+    "external_foreign": ("api.ipify.org", 443, "https"),
     "openai": ("api.openai.com", 443, "https"),
     "claude": ("api.anthropic.com", 443, "https"),
     "big3": ("lk.big3.ru", 443, "https"),
@@ -69,12 +72,14 @@ def probe(target):
                 result["peer"] = connection.sock.getpeername()[0]
                 result["reachable"] = True
                 is_api = target in ("openai", "claude")
+                is_external_ip = target in ("external_ru", "external_foreign")
                 headers = {"User-Agent": "LocalConnectivityCheck/1.0"}
                 if direct_ip:
                     headers["Host"] = http_host
                 if target == "claude":
                     headers["anthropic-version"] = "2023-06-01"
-                connection.request("GET" if is_api else "HEAD", "/v1/models" if is_api else "/",
+                path = "/?format=json" if target == "external_foreign" else "/v1/models" if is_api else "/"
+                connection.request("GET" if is_api or is_external_ip else "HEAD", path,
                                    headers=headers)
                 response = connection.getresponse()
                 code = response.status
@@ -86,6 +91,25 @@ def probe(target):
                 if is_api and code == 401:
                     result.update(status="ok", message="API доступен · требуется авторизация",
                                   detail=f"HTTPS · HTTP {code} {response.reason} · проверка без API-ключа")
+                if is_external_ip and code == 200:
+                    try:
+                        payload = json.loads(response.read(8193))
+                        if not isinstance(payload, dict) or payload.get("ok") is False:
+                            raise ValueError("Invalid IP response")
+                        external_ip = str(ipaddress.ip_address(payload["ip"]))
+                        country = payload.get("country") if target == "external_ru" else None
+                        if country is not None and (not isinstance(country, str)
+                                                    or len(country) != 2 or not country.isascii()
+                                                    or not country.isalpha()):
+                            raise ValueError("Invalid country")
+                        result.update(status="ok", message=external_ip, external_ip=external_ip,
+                                      detail=f"HTTPS · HTTP 200 · {host}"
+                                      + (f" · страна {country.upper()}" if country else ""))
+                        if country:
+                            result["country"] = country.upper()
+                    except (ValueError, KeyError, TypeError):
+                        result.update(status="error", message="Не удалось определить внешний IP",
+                                      detail="HTTPS · HTTP 200 · сервис вернул некорректный JSON или IP")
             finally:
                 connection.close()
     except socket.gaierror:

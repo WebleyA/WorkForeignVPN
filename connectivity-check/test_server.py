@@ -9,6 +9,53 @@ import server as app
 
 
 class ProbeTests(unittest.TestCase):
+    def test_external_ip_is_taken_from_response_not_server_peer(self):
+        for target, path, payload, expected in [
+            ("external_ru", "/", {"ok": True, "ip": "203.0.113.1", "country": "RU"}, "203.0.113.1"),
+            ("external_foreign", "/?format=json", {"ip": "2001:db8::1"}, "2001:db8::1"),
+        ]:
+            with self.subTest(target=target):
+                connection = Mock()
+                connection.sock.getpeername.return_value = ("192.0.2.1", 443)
+                response = connection.getresponse.return_value
+                response.status, response.reason = 200, "OK"
+                response.read.return_value = json.dumps(payload).encode()
+                with patch.object(app.http.client, "HTTPSConnection", return_value=connection):
+                    result = app.probe(target)
+                self.assertEqual(result["status"], "ok")
+                self.assertEqual(result["external_ip"], expected)
+                self.assertEqual(result["message"], expected)
+                if target == "external_ru":
+                    self.assertEqual(result["country"], "RU")
+                connection.request.assert_called_once_with("GET", path, headers={
+                    "User-Agent": "LocalConnectivityCheck/1.0"
+                })
+
+    def test_invalid_external_ip_response_is_not_success(self):
+        for payload in [b'not json', b'[]', b'{}', b'{"ip":"invalid"}',
+                        b'{"ok":false,"ip":"203.0.113.1"}',
+                        b'{"ip":"203.0.113.1","country":{}}']:
+            with self.subTest(payload=payload):
+                connection = Mock()
+                connection.sock.getpeername.return_value = ("192.0.2.1", 443)
+                response = connection.getresponse.return_value
+                response.status, response.reason = 200, "OK"
+                response.read.return_value = payload
+                with patch.object(app.http.client, "HTTPSConnection", return_value=connection):
+                    result = app.probe("external_ru")
+                self.assertEqual(result["status"], "error")
+                self.assertNotIn("external_ip", result)
+
+    def test_external_ip_http_403_stays_red(self):
+        connection = Mock()
+        connection.sock.getpeername.return_value = ("192.0.2.1", 443)
+        response = connection.getresponse.return_value
+        response.status, response.reason = 403, "Forbidden"
+        with patch.object(app.http.client, "HTTPSConnection", return_value=connection):
+            result = app.probe("external_foreign")
+        self.assertEqual(result["status"], "error")
+        response.read.assert_not_called()
+
     def test_direct_ip_http_avoids_dns_and_keeps_host_header(self):
         for target, ip, host_header in [("ru_ip", "77.88.55.88", "yandex.ru")]:
             with self.subTest(target=target):
