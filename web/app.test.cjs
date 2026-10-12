@@ -12,13 +12,62 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, "app.js"), "utf8"), context
 const parse = (link) => JSON.parse(JSON.stringify(context.parseVless(link, "test")));
 const extra = { xmux: { cMaxLifetimeMs: "180000-300000", cMaxReuseTimes: "0", maxConcurrency: "16-32" } };
 const extraJson = JSON.stringify(extra, null, 2);
-function link(value) {
+function link(value, options = {}) {
   const query = new URLSearchParams({
     type: "xhttp", host: "", path: "/api/v1/", mode: "auto", extra: value,
     security: "tls", sni: "test.example.invalid", alpn: "h2", fp: "safari",
+    ...options,
   });
   return `vless://11111111-1111-4111-8111-111111111111@test.example.invalid:443?${query}#Резерв`;
 }
+
+const pinnedCerts = `${"ab".repeat(32)},${"cd".repeat(32)}`;
+const providerExtra = {
+  scMaxEachPostBytes: 40000, scMinPostsIntervalMs: 1, uplinkChunkSize: 16000,
+  uplinkDataPlacement: "header", uplinkHTTPMethod: "GET",
+  xmux: { cMaxReuseTimes: 0, hKeepAlivePeriod: 0, hMaxRequestTimes: "100-200",
+    hMaxReusableSecs: "300-600", maxConcurrency: "0", maxConnections: 2 },
+};
+const pinnedLink = () => link(encodeURIComponent(JSON.stringify(providerExtra, null, 2)), {
+  host: "cdn.example.invalid", path: "/cdnb1/", mode: "packet-up", fp: "firefox",
+  pcs: pinnedCerts, pcn: "certificate.example.invalid",
+});
+
+test("XHTTP provider exports preserve certificate pins, names and extra", () => {
+  const stream = parse(pinnedLink()).streamSettings;
+  assert.deepEqual(stream.tlsSettings, {
+    serverName: "test.example.invalid", fingerprint: "firefox", allowInsecure: false,
+    alpn: ["h2"], pinnedPeerCertSha256: pinnedCerts, verifyPeerCertByName: "certificate.example.invalid",
+  });
+  assert.deepEqual(stream.xhttpSettings, {
+    host: "cdn.example.invalid", path: "/cdnb1/", mode: "packet-up", extra: providerExtra,
+  });
+});
+
+test("TLS certificate options accept standard aliases, lists and OpenSSL hashes", () => {
+  for (const options of [
+    { pcn: "one.example.invalid,two.example.invalid" },
+    { vcn: "one.example.invalid,two.example.invalid" },
+    { pcn: "one.example.invalid,two.example.invalid", vcn: "one.example.invalid,two.example.invalid" },
+    { pcn: "", vcn: "one.example.invalid,two.example.invalid" },
+  ]) {
+    const pcs = "AB:".repeat(31) + "AB";
+    const tls = parse(link("", { ...options, pcs })).streamSettings.tlsSettings;
+    assert.equal(tls.verifyPeerCertByName, "one.example.invalid,two.example.invalid");
+    assert.equal(tls.pinnedPeerCertSha256, pcs);
+  }
+  const tls = parse(link("", { pcs: "", pcn: "", vcn: "" })).streamSettings.tlsSettings;
+  assert.equal(tls.pinnedPeerCertSha256, undefined);
+  assert.equal(tls.verifyPeerCertByName, undefined);
+});
+
+test("invalid TLS certificate options and non-TLS uses are rejected", () => {
+  for (const pcs of ["ab", "gg".repeat(32), `${pinnedCerts},`, `,${pinnedCerts}`]) {
+    assert.throws(() => parse(link("", { pcs })), /pcs должен содержать SHA-256/);
+  }
+  assert.throws(() => parse(link("", { pcn: "one.example.invalid", vcn: "two.example.invalid" })), /pcn и vcn/);
+  assert.throws(() => parse(link("", { security: "none", pcs: pinnedCerts, pcn: "one.example.invalid" })), /Неподдерживаемые параметры/);
+});
 
 test("XHTTP extra accepts ordinary and doubly encoded exports", () => {
   for (const value of [extraJson, encodeURIComponent(extraJson)]) {
@@ -49,9 +98,9 @@ test("extra rejects invalid JSON, non-objects and excess encoding", () => {
   }
 });
 
-test("full config includes the decoded XHTTP settings", () => {
+test("full config includes the decoded XHTTP and certificate settings", () => {
   context.fixtureTemplate = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
-  context.fixtureLink = link(encodeURIComponent(extraJson));
+  context.fixtureLink = pinnedLink();
   const config = JSON.parse(vm.runInContext(`
     template = fixtureTemplate;
     state = defaultState();
@@ -59,7 +108,7 @@ test("full config includes the decoded XHTTP settings", () => {
     state.foreign[0].key = fixtureLink;
     JSON.stringify(buildConfig());
   `, context));
-  assert.deepEqual(config.outbounds[0].streamSettings.xhttpSettings.extra, extra);
+  assert.deepEqual(config.outbounds[0].streamSettings, parse(pinnedLink()).streamSettings);
   assert.equal(config.outbounds[0].tag, "VLESS-Заграница");
   assert.deepEqual(config.routing.rules, context.fixtureTemplate.routing.rules);
 });

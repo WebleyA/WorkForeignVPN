@@ -79,6 +79,18 @@ def parse_vless(link, tag):
             tls["alpn"] = alpn.split(",")
             if any(not item for item in tls["alpn"]):
                 raise ValueError("В alpn есть пустое значение.")
+        pinned_cert = take("pcs")
+        if pinned_cert:
+            if any(not re.fullmatch(r"[0-9a-fA-F]{64}", value.strip().replace(":", ""))
+                   for value in pinned_cert.split(",")):
+                raise ValueError("pcs должен содержать SHA-256 отпечатки сертификатов в hex-формате через запятую.")
+            tls["pinnedPeerCertSha256"] = pinned_cert
+        # pcn is the earlier spelling of the standard vcn parameter.
+        peer_cert_name, verify_cert_name = take("pcn"), take("vcn")
+        if peer_cert_name and verify_cert_name and peer_cert_name != verify_cert_name:
+            raise ValueError("pcn и vcn задают разные имена сертификата; оставьте один параметр.")
+        if peer_cert_name or verify_cert_name:
+            tls["verifyPeerCertByName"] = peer_cert_name or verify_cert_name
         stream["tlsSettings"] = tls
     elif security == "reality":
         if network not in ("tcp", "grpc", "xhttp"):

@@ -22,6 +22,49 @@ def link(host="one.example.invalid", user=UUID_1, **params):
 
 
 class ParserTests(unittest.TestCase):
+    def test_xhttp_tls_certificate_options(self):
+        pins = "ab" * 32 + "," + "cd" * 32
+        extra = {
+            "scMaxEachPostBytes": 40000, "scMinPostsIntervalMs": 1, "uplinkChunkSize": 16000,
+            "uplinkDataPlacement": "header", "uplinkHTTPMethod": "GET",
+            "xmux": {"cMaxReuseTimes": 0, "hKeepAlivePeriod": 0, "hMaxRequestTimes": "100-200",
+                     "hMaxReusableSecs": "300-600", "maxConcurrency": "0", "maxConnections": 2},
+        }
+        uri = link(type="xhttp", security="tls", path="/cdnb1/",
+                   mode="packet-up", extra=quote(json.dumps(extra, indent=2), safe=""),
+                   sni="cover.example.invalid", fp="firefox", alpn="h2",
+                   pcs=pins, pcn="certificate.example.invalid").replace("?", "?host=cdn.example.invalid&", 1)
+        stream = app.parse_vless(uri, app.DEFAULT_TAG)["streamSettings"]
+        self.assertEqual(stream["tlsSettings"], {
+            "serverName": "cover.example.invalid", "fingerprint": "firefox", "allowInsecure": False,
+            "alpn": ["h2"], "pinnedPeerCertSha256": pins, "verifyPeerCertByName": "certificate.example.invalid",
+        })
+        self.assertEqual(stream["xhttpSettings"], {
+            "host": "cdn.example.invalid", "path": "/cdnb1/", "mode": "packet-up", "extra": extra,
+        })
+
+    def test_tls_certificate_aliases_and_formats(self):
+        names = "one.example.invalid,two.example.invalid"
+        pins = ":".join(["AB"] * 32)
+        for params in ({"pcn": names}, {"vcn": names}, {"pcn": names, "vcn": names},
+                       {"pcn": "", "vcn": names}):
+            with self.subTest(params=params):
+                tls = app.parse_vless(link(security="tls", pcs=pins, **params), app.DEFAULT_TAG)["streamSettings"]["tlsSettings"]
+                self.assertEqual(tls["pinnedPeerCertSha256"], pins)
+                self.assertEqual(tls["verifyPeerCertByName"], names)
+        tls = app.parse_vless(link(security="tls", pcs="", pcn="", vcn=""), app.DEFAULT_TAG)["streamSettings"]["tlsSettings"]
+        self.assertNotIn("pinnedPeerCertSha256", tls)
+        self.assertNotIn("verifyPeerCertByName", tls)
+
+    def test_invalid_tls_certificate_options(self):
+        for pins in ("ab", "gg" * 32, "ab" * 32 + ",", "," + "ab" * 32):
+            with self.subTest(pins=pins), self.assertRaisesRegex(ValueError, "pcs должен содержать SHA-256"):
+                app.parse_vless(link(security="tls", pcs=pins), app.DEFAULT_TAG)
+        with self.assertRaisesRegex(ValueError, "pcn и vcn"):
+            app.parse_vless(link(security="tls", pcn="one.example.invalid", vcn="two.example.invalid"), app.DEFAULT_TAG)
+        with self.assertRaises(ValueError):
+            app.parse_vless(link(security="none", pcs="ab" * 32, pcn="one.example.invalid"), app.DEFAULT_TAG)
+
     def test_reality_vision(self):
         uri = link(security="reality", type="tcp", encryption="none",
                    flow="xtls-rprx-vision", pbk=PUBLIC_KEY, sid="ab12",

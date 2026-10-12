@@ -128,6 +128,15 @@ function parseVless(raw, tag) {
     tls.allowInsecure = bool(params.has("insecure") ? "insecure" : "allowInsecure");
     const alpn = take("alpn");
     if (alpn) { tls.alpn = alpn.split(","); if (tls.alpn.some(x => !x)) throw new Error("Пустое значение в alpn."); }
+    const pinnedCert = take("pcs");
+    if (pinnedCert) {
+      if (pinnedCert.split(",").some(value => !/^[0-9a-f]{64}$/i.test(value.trim().replace(/:/g, "")))) throw new Error("pcs должен содержать SHA-256 отпечатки сертификатов в hex-формате через запятую.");
+      tls.pinnedPeerCertSha256 = pinnedCert;
+    }
+    // pcn is the earlier spelling of the standard vcn parameter.
+    const peerCertName = take("pcn"), verifyCertName = take("vcn");
+    if (peerCertName && verifyCertName && peerCertName !== verifyCertName) throw new Error("pcn и vcn задают разные имена сертификата; оставьте один параметр.");
+    if (peerCertName || verifyCertName) tls.verifyPeerCertByName = peerCertName || verifyCertName;
     stream.tlsSettings = tls;
   } else if (security === "reality") {
     if (!["tcp", "grpc", "xhttp"].includes(network)) throw new Error("Reality поддерживается с TCP, gRPC или XHTTP.");
