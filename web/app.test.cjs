@@ -112,3 +112,80 @@ test("full config includes the decoded XHTTP and certificate settings", () => {
   assert.equal(config.outbounds[0].tag, "VLESS-Заграница");
   assert.deepEqual(config.routing.rules, context.fixtureTemplate.routing.rules);
 });
+
+test("saved keys and custom routes survive the DNS migration", () => {
+  const legacyRules = [
+    { type: "field", inboundTag: ["internal-dns"], domain: ["full:dns.google"], outboundTag: "direct" },
+    { type: "field", inboundTag: ["internal-dns"], ip: ["8.8.8.8"], outboundTag: "direct" },
+    { type: "field", inboundTag: ["internal-dns"], outboundTag: "VLESS-Заграница" },
+    { type: "field", domain: ["full:custom.example.invalid"], outboundTag: "VLESS-Работа" },
+    { type: "field", network: "tcp,udp", outboundTag: "VLESS-Заграница" },
+  ];
+  const saved = {
+    workKey: "saved-work-key", workNote: "Работа", title: "Мой профиль", description: "Описание",
+    foreign: [{ key: "saved-foreign-key", note: "Резерв" }],
+    rules: JSON.parse(JSON.stringify(context.parseRoutesText(JSON.stringify(legacyRules)))),
+  };
+  context.localStorage = { getItem: () => JSON.stringify(saved) };
+  context.fixtureTemplate = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
+  const result = JSON.parse(vm.runInContext(`
+    template = fixtureTemplate;
+    state = defaultState();
+    const restored = loadSaved();
+    JSON.stringify({ restored, state });
+  `, context));
+  assert.equal(result.restored, true);
+  assert.deepEqual(result.state, {
+    ...saved,
+    rules: [
+      { inbound: "dns-direct", kind: "any", values: "", destination: "direct" },
+      { inbound: "dns-vpn", kind: "any", values: "", destination: "foreign" },
+      ...saved.rules.slice(3),
+    ],
+  });
+  const migratedAgain = JSON.parse(JSON.stringify(context.updateDnsRoutes(result.state.rules)));
+  assert.deepEqual(migratedAgain, result.state.rules);
+});
+
+test("route imports add DNS paths before catch-all and retain other inbound tags", () => {
+  const imported = context.parseRoutesText(JSON.stringify([
+    { type: "field", inboundTag: ["internal-dns", "custom-in"], domain: ["full:custom.example.invalid"], outboundTag: "direct" },
+    { type: "field", network: "tcp,udp", outboundTag: "VLESS-Заграница" },
+  ]));
+  const updated = JSON.parse(JSON.stringify(context.updateDnsRoutes(imported)));
+  assert.deepEqual(updated.map(row => row.inbound), ["dns-direct", "dns-vpn", "custom-in", ""]);
+  assert.equal(updated[2].values, "full:custom.example.invalid");
+  assert.equal(updated[3].kind, "network");
+});
+
+test("DNS routes use the foreign balancer with multiple keys", () => {
+  const config = JSON.parse(vm.runInContext(`
+    state = defaultState();
+    state.workKey = "vless://22222222-2222-4222-8222-222222222222@work.example.invalid:443?security=tls";
+    state.foreign = [{ key: fixtureLink, note: "" }, { key: fixtureLink, note: "" }];
+    JSON.stringify(buildConfig());
+  `, context));
+  assert.deepEqual(config.routing.rules.slice(0, 2), [
+    { type: "field", inboundTag: ["dns-direct"], outboundTag: "direct" },
+    { type: "field", inboundTag: ["dns-vpn"], balancerTag: "Заграница-автовыбор" },
+  ]);
+  assert.equal(config.dns.disableFallbackIfMatch, true);
+  assert.equal(config.dns.disableFallback, false);
+  assert.equal(config.dns.enableParallelQuery, false);
+});
+
+test("both DNS chains exhaust Google paths before trying Cloudflare", () => {
+  const { dns } = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
+  const categories = ["geosite:category-ru", "geosite:apple", "geosite:microsoft", "geosite:android"];
+  for (const category of [...categories, null]) {
+    const priority = dns.servers.filter(server => server.domains?.includes(category));
+    const fallback = dns.servers.filter(server => !priority.includes(server) && !server.skipFallback);
+    const selected = dns.disableFallbackIfMatch && priority.length ? priority : [...priority, ...fallback];
+    assert.deepEqual(selected.map(server => new URL(server.address).hostname), [
+      "dns.google", "dns.google", "cloudflare-dns.com", "cloudflare-dns.com",
+    ]);
+    const first = category ? "dns-direct" : "dns-vpn";
+    const second = category ? "dns-vpn" : "dns-direct";
+    assert.deepEqual(selected.map(server => server.tag), [first, second, first, second]);
+  }
+});

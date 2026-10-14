@@ -11,19 +11,74 @@
     "servers": [
       {
         "address": "https://dns.google/dns-query",
+        "tag": "dns-direct",
+        "skipFallback": true,
         "domains": [
           "geosite:category-ru",
           "geosite:apple",
           "geosite:microsoft",
           "geosite:android"
-        ],
-        "skipFallback": true
+        ]
       },
-      "https://cloudflare-dns.com/dns-query"
+      {
+        "address": "https://dns.google/dns-query",
+        "tag": "dns-vpn",
+        "skipFallback": true,
+        "domains": [
+          "geosite:category-ru",
+          "geosite:apple",
+          "geosite:microsoft",
+          "geosite:android"
+        ]
+      },
+      {
+        "address": "https://cloudflare-dns.com/dns-query",
+        "tag": "dns-direct",
+        "skipFallback": true,
+        "domains": [
+          "geosite:category-ru",
+          "geosite:apple",
+          "geosite:microsoft",
+          "geosite:android"
+        ]
+      },
+      {
+        "address": "https://cloudflare-dns.com/dns-query",
+        "tag": "dns-vpn",
+        "skipFallback": true,
+        "domains": [
+          "geosite:category-ru",
+          "geosite:apple",
+          "geosite:microsoft",
+          "geosite:android"
+        ]
+      },
+      {
+        "address": "https://dns.google/dns-query",
+        "tag": "dns-vpn",
+        "skipFallback": false
+      },
+      {
+        "address": "https://dns.google/dns-query",
+        "tag": "dns-direct",
+        "skipFallback": false
+      },
+      {
+        "address": "https://cloudflare-dns.com/dns-query",
+        "tag": "dns-vpn",
+        "skipFallback": false
+      },
+      {
+        "address": "https://cloudflare-dns.com/dns-query",
+        "tag": "dns-direct",
+        "skipFallback": false
+      }
     ],
     "queryStrategy": "UseIP",
     "disableFallbackIfMatch": true,
-    "tag": "internal-dns"
+    "tag": "internal-dns",
+    "disableFallback": false,
+    "enableParallelQuery": false
   },
   "inbounds": [
     {
@@ -133,27 +188,14 @@
       {
         "type": "field",
         "inboundTag": [
-          "internal-dns"
-        ],
-        "domain": [
-          "full:dns.google"
+          "dns-direct"
         ],
         "outboundTag": "direct"
       },
       {
         "type": "field",
         "inboundTag": [
-          "internal-dns"
-        ],
-        "ip": [
-          "8.8.8.8"
-        ],
-        "outboundTag": "direct"
-      },
-      {
-        "type": "field",
-        "inboundTag": [
-          "internal-dns"
+          "dns-vpn"
         ],
         "outboundTag": "VLESS-Заграница"
       },

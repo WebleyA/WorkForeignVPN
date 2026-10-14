@@ -33,6 +33,20 @@ function ruleToRow(rule) {
   };
 }
 
+function updateDnsRoutes(rows) {
+  const dnsTags = new Set(["internal-dns", "dns-direct", "dns-vpn"]);
+  const dnsRows = template.routing.rules
+    .filter(rule => rule.inboundTag?.some(tag => dnsTags.has(tag)))
+    .map(ruleToRow);
+  const userRows = rows.flatMap(row => {
+    const inbound = lines(row.inbound);
+    if (!inbound.some(tag => dnsTags.has(tag))) return [row];
+    const remaining = inbound.filter(tag => !dnsTags.has(tag));
+    return remaining.length ? [{ ...row, inbound: remaining.join("\n") }] : [];
+  });
+  return [...dnsRows, ...userRows];
+}
+
 function rowToRule(row, index, multiple) {
   const rule = { type: "field" };
   const inbound = lines(row.inbound);
@@ -360,14 +374,14 @@ function loadSaved() {
     if (saved.rules.some(x => !x || ["inbound", "kind", "values", "destination"].some(k => typeof x[k] !== "string"))) return false;
     if (saved.description !== undefined && typeof saved.description !== "string") return false;
     if (saved.title !== undefined && typeof saved.title !== "string") return false;
-    state = { ...saved, title: saved.title || DEFAULT_TITLE, description: saved.description || DEFAULT_DESCRIPTION };
+    state = { ...saved, rules: updateDnsRoutes(saved.rules), title: saved.title || DEFAULT_TITLE, description: saved.description || DEFAULT_DESCRIPTION };
     return true;
   } catch { return false; }
 }
 
 async function init() {
   try {
-    const response = await fetch("../tools/happ-two-vless.json");
+    const response = await fetch("../tools/happ-two-vless.json?v=20261014-2", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     template = await response.json();
   } catch {
@@ -410,7 +424,7 @@ async function init() {
   $("#apply-routes").addEventListener("click", () => {
     try {
       const imported = parseRoutesText($("#routes-json").value);
-      state.rules = imported;
+      state.rules = updateDnsRoutes(imported);
       renderRoutes(); refresh();
       $("#routes-import").hidden = true;
       $("#routes-import-error").hidden = true;

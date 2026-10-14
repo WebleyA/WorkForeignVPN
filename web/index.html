@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Конфиг Happ · Рабочий и зарубежный VPN</title>
   <link rel="stylesheet" href="style.css?v=20261001-1">
-  <script src="app.js?v=20261012-1" defer></script>
+  <script src="app.js?v=20261014-2" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -34,7 +34,7 @@
       <div id="routes-import" class="import-panel" hidden><label for="routes-json">JSON правил маршрутизации</label><p>Вставьте массив правил Xray или полный конфиг с <code>routing.rules</code>. Импорт заменит текущую таблицу.</p><textarea id="routes-json" spellcheck="false" placeholder='[{"type":"field","domain":["domain:example.org"],"outboundTag":"direct"}]'></textarea><div id="routes-import-error" class="error" role="alert" hidden></div><div class="import-actions"><button type="button" class="button dark" id="apply-routes">Применить</button><button type="button" class="button quiet" id="cancel-routes">Отмена</button></div></div>
       <p id="routes-feedback" class="routes-feedback" role="status" hidden></p>
       <div class="table-scroll"><table><thead><tr><th class="order-col">Порядок</th><th>Вход</th><th>Тип условия</th><th>Значения <span class="th-sub">по одному в строке</span></th><th>Куда</th><th class="delete-col"></th></tr></thead><tbody id="routes"></tbody></table></div>
-      <p class="table-foot">Вход «Все» подходит для обычных правил. Служебные DNS-строки используют вход <code>internal-dns</code>. Последнее правило «Весь TCP/UDP» охватывает остальной трафик.</p>
+      <p class="table-foot">Вход «Все» подходит для обычных правил. Первые две служебные строки задают прямой и зарубежный путь DNS с автоматическим резервом. Они обновляются при загрузке страницы и импорте таблицы. Последнее правило «Весь TCP/UDP» охватывает остальной трафик.</p>
     </section>
 
     <section class="panel output-panel" aria-labelledby="output-title">
