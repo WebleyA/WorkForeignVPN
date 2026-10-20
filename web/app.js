@@ -18,7 +18,7 @@ let draggedIndex = null;
 function defaultState() {
   return {
     workKey: "", workNote: "", title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION,
-    foreign: [{ key: "", note: "" }],
+    foreign: [{ key: "", note: "", enabled: true }],
     rules: clone(template.routing.rules).map(ruleToRow),
   };
 }
@@ -200,11 +200,16 @@ function parseVless(raw, tag) {
   return { tag, protocol: "vless", settings: { vnext: [{ address: host, port: Number(url.port), users: [{ id: uuid.toLowerCase(), encryption, flow }] }] }, streamSettings: stream };
 }
 
+function activeForeign() {
+  return state.foreign.filter(item => item.enabled !== false);
+}
+
 function buildConfig() {
-  if (!state.workKey.trim() || state.foreign.some(item => !item.key.trim()) || !state.foreign.length) return null;
-  const multiple = state.foreign.length > 1;
+  const active = activeForeign();
+  if (!state.workKey.trim() || active.some(item => !item.key.trim()) || !active.length) return null;
+  const multiple = active.length > 1;
   const work = parseVless(state.workKey, WORK_TAG);
-  const foreign = state.foreign.map((item, index) => parseVless(item.key, multiple ? `${FOREIGN_PREFIX}${index + 1}` : FOREIGN_TAG));
+  const foreign = active.map((item, index) => parseVless(item.key, multiple ? `${FOREIGN_PREFIX}${index + 1}` : FOREIGN_TAG));
   const config = clone(template);
   config.remarks = state.title.trim() || (multiple ? "Lex — VLESS-Работа + зарубежные серверы (автовыбор)" : "Lex — VLESS-Работа + VLESS-Заграница");
   if (state.description.trim()) {
@@ -241,6 +246,17 @@ function renderForeign() {
       head.append(remove);
     }
     entry.append(head);
+    const toggle = element("label", { class: "key-toggle" });
+    const enabled = element("input", { type: "checkbox", role: "switch", "aria-label": `Сервер ${index + 1}: участвует в конфиге` });
+    enabled.checked = item.enabled !== false;
+    entry.classList.toggle("is-excluded", !enabled.checked);
+    enabled.addEventListener("change", () => {
+      item.enabled = enabled.checked;
+      entry.classList.toggle("is-excluded", !enabled.checked);
+      refresh();
+    });
+    toggle.append(enabled, element("span", { class: "key-toggle-track", "aria-hidden": "true" }), element("span", {}, "Участвует в конфиге"));
+    entry.append(toggle);
     const keyId = `foreign-key-${index}`, noteId = `foreign-note-${index}`;
     entry.append(element("label", { for: keyId }, "VLESS-ключ"));
     const wrap = element("div", { class: "input-wrap" });
@@ -349,7 +365,9 @@ function refresh(save = true) {
   try {
     const config = buildConfig();
     if (!config) {
-      output.textContent = "Добавьте рабочий и хотя бы один зарубежный VLESS-ключ, чтобы увидеть конфиг.";
+      output.textContent = activeForeign().length
+        ? "Добавьте рабочий VLESS-ключ и заполните все включённые зарубежные ключи, чтобы увидеть конфиг."
+        : "Включите хотя бы один зарубежный ключ, чтобы увидеть конфиг.";
       status.textContent = "Ожидает ключи";
       return;
     }
@@ -371,10 +389,11 @@ function loadSaved() {
     if (!saved || typeof saved !== "object") return false;
     if (typeof saved.workKey !== "string" || typeof saved.workNote !== "string" || !Array.isArray(saved.foreign) || !saved.foreign.length || !Array.isArray(saved.rules)) return false;
     if (saved.foreign.some(x => !x || typeof x.key !== "string" || typeof x.note !== "string")) return false;
+    if (saved.foreign.some(x => x.enabled !== undefined && typeof x.enabled !== "boolean")) return false;
     if (saved.rules.some(x => !x || ["inbound", "kind", "values", "destination"].some(k => typeof x[k] !== "string"))) return false;
     if (saved.description !== undefined && typeof saved.description !== "string") return false;
     if (saved.title !== undefined && typeof saved.title !== "string") return false;
-    state = { ...saved, rules: updateDnsRoutes(saved.rules), title: saved.title || DEFAULT_TITLE, description: saved.description || DEFAULT_DESCRIPTION };
+    state = { ...saved, foreign: saved.foreign.map(item => ({ ...item, enabled: item.enabled !== false })), rules: updateDnsRoutes(saved.rules), title: saved.title || DEFAULT_TITLE, description: saved.description || DEFAULT_DESCRIPTION };
     return true;
   } catch { return false; }
 }
@@ -400,11 +419,11 @@ async function init() {
   $("#work-key").addEventListener("input", event => { state.workKey = event.target.value; refresh(); });
   $("#work-note").addEventListener("input", event => { state.workNote = event.target.value; persistState(); });
   document.querySelectorAll("[data-reveal]").forEach(button => button.addEventListener("click", () => toggleReveal(document.getElementById(button.dataset.reveal), button)));
-  $("#add-foreign").addEventListener("click", () => { state.foreign.push({ key: "", note: "" }); renderForeign(); refresh(); document.getElementById(`foreign-key-${state.foreign.length - 1}`).focus(); });
+  $("#add-foreign").addEventListener("click", () => { state.foreign.push({ key: "", note: "", enabled: true }); renderForeign(); refresh(); document.getElementById(`foreign-key-${state.foreign.length - 1}`).focus(); });
   $("#add-route").addEventListener("click", () => { state.rules.push({ inbound: "", kind: "domain", values: "", destination: "foreign" }); renderRoutes(); refresh(); });
   $("#copy-routes").addEventListener("click", async () => {
     try {
-      const text = JSON.stringify(state.rules.map((row, index) => rowToRule(row, index, state.foreign.length > 1)), null, 2);
+      const text = JSON.stringify(state.rules.map((row, index) => rowToRule(row, index, activeForeign().length > 1)), null, 2);
       await navigator.clipboard.writeText(text);
       routeFeedback("Правила скопированы в формате JSON.");
     } catch (exc) {

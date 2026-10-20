@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Конфиг Happ · Рабочий и зарубежный VPN</title>
-  <link rel="stylesheet" href="style.css?v=20261001-1">
-  <script src="app.js?v=20261014-2" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261020-1">
+  <script src="app.js?v=20261020-1" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -25,7 +25,7 @@
       <div class="section-head"><div><span class="section-number">01 / ПОДКЛЮЧЕНИЯ</span><h2 id="keys-title">Ваши ключи</h2><p>Примечания нужны только вам и не попадут в конфиг.</p></div><div class="head-symbol">⌁</div></div>
       <div class="key-grid">
         <div class="key-card work-card"><div class="card-title"><span class="number-badge">1</span><div><h3>Рабочий VPN</h3><p>Для рабочих адресов и big3.ru</p></div></div><label for="work-key">VLESS-ключ</label><div class="input-wrap"><input id="work-key" type="password" spellcheck="false" autocomplete="off" placeholder="vless://uuid@server:port?..."><button type="button" class="reveal" data-reveal="work-key" aria-label="Показать ключ">Показать</button></div><label for="work-note">Примечание <span class="optional">необязательно</span></label><input id="work-note" type="text" autocomplete="off" placeholder="Например, офисный сервер"></div>
-        <div class="key-card foreign-card"><div class="card-title"><span class="number-badge foreign">2</span><div><h3>Зарубежный VPN</h3><p>Один или несколько серверов</p></div></div><div id="foreign-list"></div><button type="button" class="button add-key" id="add-foreign"><span>＋</span> Добавить сервер</button><p class="small-hint">При нескольких серверах выбирается доступный с минимальной задержкой.</p></div>
+        <div class="key-card foreign-card"><div class="card-title"><span class="number-badge foreign">2</span><div><h3>Зарубежный VPN</h3><p>Один или несколько серверов</p></div></div><div id="foreign-list"></div><button type="button" class="button add-key" id="add-foreign"><span>＋</span> Добавить сервер</button><p class="small-hint">Выключенные ключи сохраняются здесь, но не попадают в конфиг. При нескольких включённых серверах выбирается доступный с минимальной задержкой.</p></div>
       </div>
     </section>
 
@@ -42,7 +42,7 @@
       <div id="error" class="error" role="alert" hidden></div>
       <div class="config-description"><label for="config-title">Заголовок в Happ <span class="optional">необязательно</span></label><input id="config-title" type="text" autocomplete="off" placeholder="Например, Рабочий и личный VPN" aria-describedby="title-hint"><p id="title-hint">Название сервера в Happ. Если оставить пустым, заголовок сформируется автоматически.</p></div>
       <div class="config-description"><label for="config-description">Описание под заголовком в Happ <span class="optional">необязательно</span></label><input id="config-description" type="text" autocomplete="off" placeholder="Например, Рабочие сети через офис, остальные — через зарубежный VPN" aria-describedby="description-hint"><p id="description-hint">Заменяет строку с протоколами под названием сервера в Happ. Если оставить пустым, Happ покажет протоколы.</p></div>
-      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий и хотя бы один зарубежный VLESS-ключ, чтобы увидеть конфиг.</pre></div>
+      <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий VLESS-ключ и заполните все включённые зарубежные ключи, чтобы увидеть конфиг.</pre></div>
     </section>
     <section class="panel" aria-labelledby="connectivity-title">
       <div class="section-head"><div><span class="section-number">04 / ПРОВЕРКА СОЕДИНЕНИЙ</span><h2 id="connectivity-title">Доступность сервисов</h2><p>Запустите Docker Desktop и выполните команду в терминале. Инструмент проверит сайты, API и рабочие сервисы через сеть контейнера.</p></div></div>

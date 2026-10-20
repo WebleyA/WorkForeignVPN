@@ -137,6 +137,7 @@ test("saved keys and custom routes survive the DNS migration", () => {
   assert.equal(result.restored, true);
   assert.deepEqual(result.state, {
     ...saved,
+    foreign: saved.foreign.map(item => ({ ...item, enabled: true })),
     rules: [
       { inbound: "dns-direct", kind: "any", values: "", destination: "direct" },
       { inbound: "dns-vpn", kind: "any", values: "", destination: "foreign" },
@@ -172,6 +173,87 @@ test("DNS routes use the foreign balancer with multiple keys", () => {
   assert.equal(config.dns.disableFallbackIfMatch, true);
   assert.equal(config.dns.disableFallback, false);
   assert.equal(config.dns.enableParallelQuery, false);
+});
+
+test("excluded foreign keys are ignored and routing follows the active server count", () => {
+  context.fixtureTemplate = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
+  context.fixtureLink = pinnedLink();
+  const configs = JSON.parse(vm.runInContext(`(() => {
+    template = fixtureTemplate;
+    state = defaultState();
+    state.workKey = "vless://22222222-2222-4222-8222-222222222222@work.example.invalid:443?security=tls";
+    state.foreign = [
+      { key: "invalid disabled key", note: "Не удалять", enabled: false },
+      { key: fixtureLink, note: "Первый", enabled: true },
+      { key: "", note: "Заполнить позже", enabled: false },
+      { key: fixtureLink.replaceAll("test.example.invalid", "second.example.invalid"), note: "Второй", enabled: true },
+    ];
+    const multiple = buildConfig();
+    state.foreign[1].enabled = false;
+    const single = buildConfig();
+    state.foreign[3].enabled = false;
+    const none = buildConfig();
+    state.foreign[1].enabled = true;
+    state.foreign[3].enabled = true;
+    const restored = buildConfig();
+    return JSON.stringify({ multiple, single, none, restored, foreign: state.foreign });
+  })()`, context));
+  const { multiple, single, none, restored, foreign } = configs;
+  assert.deepEqual(multiple.outbounds.filter(x => x.protocol === "vless").map(x => x.tag), [
+    "VLESS-Заграница-1", "VLESS-Заграница-2", "VLESS-Работа",
+  ]);
+  assert.equal(multiple.routing.balancers[0].fallbackTag, "VLESS-Заграница-1");
+  assert.equal(multiple.routing.rules[1].balancerTag, "Заграница-автовыбор");
+  assert.deepEqual(single.outbounds.filter(x => x.protocol === "vless").map(x => x.tag), [
+    "VLESS-Заграница", "VLESS-Работа",
+  ]);
+  assert.equal(single.outbounds[0].settings.vnext[0].address, "second.example.invalid");
+  assert.equal(single.routing.balancers, undefined);
+  assert.equal(single.observatory, undefined);
+  assert.ok(single.routing.rules.every(rule => !rule.balancerTag));
+  assert.equal(single.routing.rules[1].outboundTag, "VLESS-Заграница");
+  assert.equal(none, null);
+  assert.deepEqual(restored, multiple);
+  assert.deepEqual(foreign[0], { key: "invalid disabled key", note: "Не удалять", enabled: false });
+});
+
+test("enabled foreign keys still require valid nonempty links", () => {
+  context.fixtureTemplate = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
+  const config = vm.runInContext(`
+    template = fixtureTemplate;
+    state = defaultState();
+    state.workKey = "vless://22222222-2222-4222-8222-222222222222@work.example.invalid:443?security=tls";
+    state.foreign = [{ key: "", note: "", enabled: true }];
+    buildConfig();
+  `, context);
+  assert.equal(config, null);
+  assert.throws(() => vm.runInContext(`
+    state.foreign[0].key = "invalid enabled key";
+    buildConfig();
+  `, context), /VLESS|vless/);
+});
+
+test("saved foreign switches retain false and migrate missing values to true", () => {
+  context.fixtureTemplate = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/happ-two-vless.json"), "utf8"));
+  const saved = {
+    workKey: "saved-work-key", workNote: "Работа", title: "Мой профиль", description: "Описание",
+    foreign: [
+      { key: "saved-disabled-key", note: "Резерв", enabled: false },
+      { key: "saved-enabled-key", note: "Основной", enabled: true },
+      { key: "saved-legacy-key", note: "Старый" },
+    ],
+    rules: [],
+  };
+  context.localStorage = { getItem: () => JSON.stringify(saved) };
+  const result = JSON.parse(vm.runInContext(`
+    template = fixtureTemplate;
+    state = defaultState();
+    JSON.stringify({ restored: loadSaved(), state });
+  `, context));
+  assert.equal(result.restored, true);
+  assert.deepEqual(result.state.foreign, saved.foreign.map(item => ({ ...item, enabled: item.enabled !== false })));
+  saved.foreign[0].enabled = "false";
+  assert.equal(vm.runInContext("loadSaved()", context), false);
 });
 
 test("both DNS chains exhaust Google paths before trying Cloudflare", () => {
