@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Конфиг Happ · Рабочий и зарубежный VPN</title>
-  <link rel="stylesheet" href="style.css?v=20261020-1">
+  <link rel="stylesheet" href="style.css?v=20261020-4">
   <script src="app.js?v=20261020-1" defer></script>
 </head>
 <body>
-  <main class="shell">
+  <main>
+    <div class="shell">
     <header class="masthead">
       <div class="brand"><span class="brand-icon">↗</span><span>HAPP <small>CONFIG STUDIO</small></span></div>
       <div class="header-actions"><span id="save-status" role="status">Автосохранение включено</span><button type="button" class="button quiet" id="reset">Сбросить всё</button></div>
@@ -44,13 +45,26 @@
       <div class="config-description"><label for="config-description">Описание под заголовком в Happ <span class="optional">необязательно</span></label><input id="config-description" type="text" autocomplete="off" placeholder="Например, Рабочие сети через офис, остальные — через зарубежный VPN" aria-describedby="description-hint"><p id="description-hint">Заменяет строку с протоколами под названием сервера в Happ. Если оставить пустым, Happ покажет протоколы.</p></div>
       <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>happ-config.json</span><span id="config-state">Ожидает ключи</span></div><pre id="output">Добавьте рабочий VLESS-ключ и заполните все включённые зарубежные ключи, чтобы увидеть конфиг.</pre></div>
     </section>
-    <section class="panel" aria-labelledby="connectivity-title">
-      <div class="section-head"><div><span class="section-number">04 / ПРОВЕРКА СОЕДИНЕНИЙ</span><h2 id="connectivity-title">Доступность сервисов</h2><p>Запустите Docker Desktop и выполните команду в терминале. Инструмент проверит сайты, API и рабочие сервисы через сеть контейнера.</p></div></div>
+    </div>
+    <section class="connectivity-section" aria-labelledby="connectivity-title">
+      <div class="shell">
+      <div class="panel connectivity-panel">
+      <div class="section-head"><div><span class="section-number">ДОПОЛНИТЕЛЬНЫЙ ИНСТРУМЕНТ</span><h2 id="connectivity-title">Доступность сервисов</h2><p class="connectivity-intro">Отдельная проверка соединений — можно запустить в любой момент.</p><p>Локальная панель проверяет доступность сервисов через сеть контейнера, показывает результат и время каждой проверки, а также внешний IP. Помогает проверить маршруты VPN и отличить проблемы DNS от ошибок подключения.</p></div></div>
+      <ul class="connectivity-targets">
+        <li><strong>Сайты:</strong> <code>yandex.ru:443</code>, <code>google.com:443</code>, <code>lk.big3.ru:443</code> — HTTPS и ответ HTTP.</li>
+        <li><strong>Без DNS:</strong> Яндекс <code>77.88.55.88:80</code> и Google <code>142.251.13.113:443</code> — соединение напрямую по IP.</li>
+        <li><strong>API без ключей:</strong> <code>api.openai.com:443</code> и <code>api.anthropic.com:443</code> — доступность <code>/v1/models</code>; ответ 401 означает, что API доступен.</li>
+        <li><strong>Рабочая БД:</strong> <code>10.10.13.98:5432</code> — TCP и ответ протокола PostgreSQL без входа в базу.</li>
+        <li><strong>Внешний IP:</strong> <code>api.ipgeo.ru:443</code> — IP и страна, <code>api.ipify.org:443</code> — IP. При раздельной маршрутизации адреса могут отличаться.</li>
+      </ul>
+      <p class="connectivity-launch">Для запуска откройте Docker Desktop и выполните команду в терминале:</p>
       <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>macOS · Терминал</span></div><pre>docker pull ghcr.io/webleya/connectivity-check:latest &amp;&amp; { (sleep 3; open http://127.0.0.1:8765/) &amp; docker run --rm --name connectivity-check -p 127.0.0.1:8765:8765 ghcr.io/webleya/connectivity-check:latest; }</pre></div>
       <div class="code-window"><div class="code-bar"><span class="code-dots"><i></i><i></i><i></i></span><span>Windows · PowerShell</span></div><pre>docker pull ghcr.io/webleya/connectivity-check:latest; if ($LASTEXITCODE -eq 0) { $browserJob = Start-Job { Start-Sleep -Seconds 3; Start-Process "http://127.0.0.1:8765/" }; try { docker run --rm --name connectivity-check -p 127.0.0.1:8765:8765 ghcr.io/webleya/connectivity-check:latest } finally { $browserJob | Wait-Job | Remove-Job } }</pre></div>
       <p class="table-foot">Команда скачает образ, запустит контейнер и откроет браузер. Оставьте терминал открытым. Если страница открылась раньше запуска сервера, обновите её или откройте <a href="http://127.0.0.1:8765/" target="_blank" rel="noopener noreferrer">страницу проверки ↗</a>. Для остановки нажмите Ctrl+C в этом терминале; контейнер удалится автоматически. Из другого терминала можно остановить его командой <code>docker stop connectivity-check</code>.</p>
+      </div>
+      </div>
     </section>
-    <footer>Работает локально · Ключи и настройки автоматически сохраняются в этом браузере · <a href="https://xtls.github.io/en/config/routing.html" target="_blank" rel="noopener noreferrer">Правила Xray ↗</a></footer>
+    <footer class="shell">Работает локально · Ключи и настройки автоматически сохраняются в этом браузере · <a href="https://xtls.github.io/en/config/routing.html" target="_blank" rel="noopener noreferrer">Правила Xray ↗</a> · <a href="https://github.com/WebleyA/WorkForeignVPN" target="_blank" rel="noopener noreferrer">Исходники на GitHub ↗</a></footer>
   </main>
 </body>
 </html>
